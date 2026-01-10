@@ -573,7 +573,7 @@
         try {
           showLoader();
 
-          const res = await fetch(`${BASE_URL}${endpoint}`, {
+          const res = await fetch(`${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(
