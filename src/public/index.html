@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChatApp</title>
+    <style>
+      :root {
+        --green: #25d366;
+        --green-dark: #128c7e;
+        --bg-chat: #ece5dd;
+        --bubble-sent: #dcf8c6;
+        --bubble-recv: #fff;
+        --border: #ccc;
+      }
+
+      #backBtn {
+        border: none;
+        background: none;
+        font-size: 1.4rem;
+        cursor: pointer;
+      }
+
+      /* Layout */
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg-chat);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* Loader */
+      .page-loader {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(3px);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .page-loader .dots {
+        display: flex;
+        gap: 10px;
+      }
+      .page-loader .dots span {
+        width: 12px;
+        height: 12px;
+        background: var(--green);
+        border-radius: 50%;
+        opacity: 0.2;
+        animation: jump 1.4s infinite ease-in-out;
+      }
+      .page-loader .dots span:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .page-loader .dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .page-loader .dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes jump {
+        0%,
+        80%,
+        100% {
+          opacity: 0.2;
+          transform: translateY(0);
+        }
+        40% {
+          opacity: 1;
+          transform: translateY(-10px);
+        }
+      }
+
+      /* Login */
+      .login-box {
+        width: 320px;
+        padding: 2rem;
+        text-align: center;
+        display: none;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        animation: fade 250ms ease-in;
+      }
+      .login-box h2 {
+        margin: 0 0 10px;
+      }
+      .login-box input {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+      }
+      .login-box button {
+        width: 100%;
+        padding: 10px;
+        background: var(--green);
+        border: none;
+        color: #fff;
+        font-weight: bold;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .login-box button:hover {
+        background: var(--green-dark);
+      }
+      .login-error {
+        color: #c62828;
+        font-size: 0.9rem;
+        min-height: 1.2rem;
+      }
+
+      /* Chat layout */
+      .chat-layout {
+        width: 92%;
+        height: 90vh;
+        display: none;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: fade 250ms ease-in;
+        display: flex;
+      }
+      .sidebar {
+        width: 28%;
+        background: #f7f7f7;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar-header {
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+      }
+      .sidebar-header .me {
+        font-weight: bold;
+      }
+      .sidebar-header button {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      .sidebar input {
+        margin: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+      .contacts {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .contact {
+        padding: 14px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .contact:hover {
+        background: #efefef;
+      }
+      .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #ddd;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        color: #555;
+      }
+      .contact .meta {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.95rem;
+      }
+      .contact .meta .email {
+        font-size: 0.82rem;
+        color: #777;
+      }
+
+      .chat-window {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-chat);
+      }
+      .chat-header {
+        height: 60px;
+        background: #ededed;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+      }
+      .chat-header .name {
+        font-weight: bold;
+      }
+      .chat-header .email {
+        font-size: 0.85rem;
+        color: #666;
+      }
+
+      .messages {
+        flex: 1;
+        padding: 18px;
+        overflow-y: auto;
+        background: var(--bg-chat);
+      }
+      .message {
+        margin: 10px 0;
+        padding: 10px 12px;
+        border-radius: 12px;
+        max-width: 62%;
+        word-wrap: break-word;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      .sent {
+        background: var(--bubble-sent);
+        margin-left: auto;
+      }
+      .received {
+        background: var(--bubble-recv);
+        margin-right: auto;
+      }
+      .timestamp {
+        display: block;
+        margin-top: 6px;
+        font-size: 0.75rem;
+        color: #777;
+        text-align: right;
+      }
+
+      .input-bar {
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        background: #f0f0f0;
+        border-top: 1px solid var(--border);
+      }
+      .input-bar input {
+        flex: 1;
+        padding: 12px;
+        border-radius: 22px;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+      .input-bar button {
+        padding: 10px 18px;
+        border: none;
+        background: var(--green);
+        color: #fff;
+        border-radius: 22px;
+        cursor: pointer;
+      }
+      .input-bar button:hover {
+        background: var(--green-dark);
+      }
+
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* =========================
+   MOBILE RESPONSIVENESS
+========================= */
+      @media (max-width: 768px) {
+        body {
+          align-items: stretch;
+        }
+
+        .chat-layout {
+          flex-direction: column;
+          width: 100%;
+          height: 100vh;
+          border-radius: 0;
+        }
+
+        .sidebar {
+          width: 100%;
+          border-right: none;
+          flex: none;
+        }
+
+        /* Hide chat window until a contact is clicked */
+        .chat-window {
+          display: none;
+          width: 100%;
+          height: 100vh;
+          flex-direction: column;
+        }
+
+        /* When chat is open */
+        .chat-layout.chat-open .sidebar {
+          display: none;
+        }
+        .chat-layout.chat-open .chat-window {
+          display: flex;
+        }
+
+        .messages {
+          flex: 1;
+          padding: 12px;
+          overflow-y: auto;
+        }
+
+        .input-bar {
+          flex-shrink: 0;
+          display: flex;
+          gap: 8px;
+          padding: 10px;
+          background: #f0f0f0;
+          border-top: 1px solid var(--border);
+        }
+
+        .input-bar input {
+          flex: 1;
+          padding: 10px;
+          border-radius: 22px;
+          border: 1px solid var(--border);
+          background: #fff;
+        }
+
+        .input-bar button {
+          padding: 10px 14px;
+          border-radius: 22px;
+        }
+
+        .contact {
+          padding: 16px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .chat-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding: 8px;
+        }
+
+        .message {
+          max-width: 90%;
+          font-size: 0.85rem;
+        }
+
+        .input-bar {
+          flex-direction: column;
+        }
+        .input-bar button {
+          width: 100%;
+          margin-top: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Login -->
+    <!-- Login / Register -->
+    <div class="login-box" id="loginBox">
+      <h2 id="authTitle">Welcome back</h2>
+
+      <div class="login-error" id="loginError"></div>
+
+      <!-- REGISTER ONLY -->
+      <input
+        type="text"
+        id="name"
+        placeholder="Full name"
+        style="display: none"
+      />
+
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+
+      <button id="loginBtn">Login</button>
+
+      <p style="margin-top: 10px; font-size: 0.9rem">
+        <span id="toggleText">No account?</span>
+        <a href="#" id="toggleAuth">Register</a>
+      </p>
+    </div>
+
+    <!-- Chat Layout -->
+    <div class="chat-layout" id="chatLayout">
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="me" id="meName">You</div>
+          <button id="logoutBtn">Logout</button>
+        </div>
+        <input type="text" id="search" placeholder="Search by email or name" />
+        <div class="contacts" id="contacts"></div>
+      </div>
+      <div class="chat-window">
+        <div class="chat-header" id="chatHeader">
+          <button id="backBtn" style="display: none">←</button>
+
+          <div class="avatar" id="chatAvatar">?</div>
+          <div>
+            <div class="name" id="chatName">No chat selected</div>
+            <div class="email" id="chatEmail"></div>
+          </div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="input-bar">
+          <input
+            type="text"
+            id="msgInput"
+            placeholder="Type a message and press Enter"
+          />
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Socket.IO client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      function openChatMobile() {
+        if (window.innerWidth <= 768) {
+          els.chatLayout.classList.add("chat-open");
+          document.getElementById("backBtn").style.display = "block";
+        }
+      }
+
+      function closeChatMobile() {
+        els.chatLayout.classList.remove("chat-open");
+        document.getElementById("backBtn").style.display = "none";
+      }
+
+      function showLoader() {
+        document.getElementById("pageLoader").style.display = "flex";
+        document.body.style.overflow = "hidden";
+      }
+
+      function hideLoader() {
+        document.getElementById("pageLoader").style.display = "none";
+        document.body.style.overflow = "";
+      }
+
+      // Adjust if your backend runs elsewhere
+      const BASE_URL = "http://127.0.0.1:4555/";
+
+      let socket = null;
+      let user = null;
+      let activeRecipient = null;
+      let searchTimer = null;
+
+      document.getElementById("toggleAuth").addEventListener("click", (e) => {
+        e.preventDefault();
+        toggleAuthMode();
+      });
+
+      const els = {
+        loginBox: document.getElementById("loginBox"),
+        chatLayout: document.getElementById("chatLayout"),
+        loginBtn: document.getElementById("loginBtn"),
+        logoutBtn: document.getElementById("logoutBtn"),
+        email: document.getElementById("email"),
+        password: document.getElementById("password"),
+        loginError: document.getElementById("loginError"),
+        meName: document.getElementById("meName"),
+        search: document.getElementById("search"),
+        contacts: document.getElementById("contacts"),
+        chatHeader: document.getElementById("chatHeader"),
+        chatAvatar: document.getElementById("chatAvatar"),
+        chatName: document.getElementById("chatName"),
+        chatEmail: document.getElementById("chatEmail"),
+        messages: document.getElementById("messages"),
+        msgInput: document.getElementById("msgInput"),
+        sendBtn: document.getElementById("sendBtn"),
+      };
+
+      // Initial UI state
+      function showLogin() {
+        els.chatLayout.style.display = "none";
+        els.loginBox.style.display = "block";
+      }
+      function showChat() {
+        els.loginBox.style.display = "none";
+        els.chatLayout.style.display = "flex";
+      }
+
+      // Format time
+      function timeNow() {
+        const d = new Date();
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      // Render a message bubble
+      function renderMessage(text, sent = false) {
+        const div = document.createElement("div");
+        div.className = "message " + (sent ? "sent" : "received");
+        div.innerHTML = `${text}<span class="timestamp">${timeNow()}</span>`;
+        els.messages.appendChild(div);
+        els.messages.scrollTop = els.messages.scrollHeight;
+      }
+
+      // Connect socket with token
+      function connectSocket(token) {
+        if (socket) socket.disconnect();
+        socket = io(BASE_URL, { auth: { token } });
+
+        socket.on("connect", () => {
+          console.log("Socket connected:", socket.id);
+          // Let backend put you in your personal room (email or userId)
+          socket.emit("joinRoom", user.user._id);
+        });
+
+        socket.on("disconnect", () => {
+          console.log("Socket disconnected");
+        });
+
+        // Receive messages pushed by backend
+        socket.on("sendMessage", (msg) => {
+          // Only render if the message belongs to current open chat,
+          // or render all (adjust to your preference)
+          if (
+            activeRecipient &&
+            (msg.sender === activeRecipient.email ||
+              msg.recipient === activeRecipient.email)
+          ) {
+            renderMessage(
+              msg.message,
+              msg.sender === user.email || msg.sender === user.name
+            );
+          } else {
+            // Optional: toast/indicator for new message from someone else
+          }
+        });
+      }
+
+      // Login flow
+      async function doLogin() {
+        els.loginError.textContent = "";
+
+        const email = els.email.value.trim();
+        const password = els.password.value.trim();
+        const name = document.getElementById("name").value.trim();
+
+        if (!email || !password || (isRegister && !name)) {
+          els.loginError.textContent = "Fill all required fields.";
+          return;
+        }
+
+        const endpoint = isRegister ? "Guest/register" : "Guest/login";
+
+        try {
+          showLoader();
+
+          const res = await fetch(`${BASE_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              isRegister ? { name, email, password } : { email, password }
+            ),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.token) {
+            els.loginError.textContent = data.message || "Auth failed.";
+            return;
+          }
+
+          user = data;
+          console.log(user);
+          localStorage.setItem("user", JSON.stringify(user));
+
+          els.meName.textContent = user.user.name || user.user.email;
+          connectSocket(user.token);
+          showChat();
+          fetchAllUsers();
+        } catch (err) {
+          console.error(err);
+          els.loginError.textContent = "Network error.";
+        } finally {
+          hideLoader();
+        }
+      }
+
+      let isRegister = false;
+
+      function toggleAuthMode() {
+        isRegister = !isRegister;
+
+        document.getElementById("name").style.display = isRegister
+          ? "block"
+          : "none";
+
+        document.getElementById("authTitle").textContent = isRegister
+          ? "Create account"
+          : "Welcome back";
+
+        document.getElementById("loginBtn").textContent = isRegister
+          ? "Register"
+          : "Login";
+
+        document.getElementById("toggleText").textContent = isRegister
+          ? "Already have an account?"
+          : "No account?";
+
+        document.getElementById("toggleAuth").textContent = isRegister
+          ? "Login"
+          : "Register";
+
+        els.loginError.textContent = "";
+      }
+
+      // Logout
+      function doLogout() {
+        localStorage.removeItem("user");
+        activeRecipient = null;
+        els.contacts.innerHTML = "";
+        els.messages.innerHTML = "";
+        els.chatName.textContent = "No chat selected";
+        els.chatEmail.textContent = "";
+        els.chatAvatar.textContent = "?";
+        if (socket) socket.disconnect();
+        showLogin();
+      }
+
+      // Restore session
+      function restoreSession() {
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          user = JSON.parse(stored);
+          els.meName.textContent = user.name || user.email;
+          connectSocket(user.token);
+          showChat();
+        } else {
+          showLogin();
+        }
+      }
+
+      // Debounced search
+      async function searchUsers(query) {
+        if (!user || !user.token) return;
+        try {
+          const res = await fetch(
+            `${BASE_URL}/search?query=${encodeURIComponent(query)}`,
+            {
+              headers: { Authorization: `Bearer ${user.token}` },
+            }
+          );
+          const results = await res.json();
+          els.contacts.innerHTML = "";
+          (results || []).forEach((c) => {
+            if (c.email === user.email) return; // skip self
+            const div = document.createElement("div");
+            div.className = "contact";
+            const initials = (c.name || c.email).slice(0, 1).toUpperCase();
+            div.innerHTML = `
+            <div class="avatar">${initials}</div>
+            <div class="meta">
+              <div class="name">${c.name || c.email}</div>
+              <div class="email">${c.email}</div>
+            </div>
+          `;
+            div.onclick = () => openChat(c);
+            els.contacts.appendChild(div);
+          });
+        } catch (err) {
+          console.error("Search error:", err);
+        }
+      }
+
+      async function fetchAllUsers() {
+        if (!user || !user.token) return;
+        try {
+          const res = await fetch(`${BASE_URL}Guest/users`, {
+            headers: { Authorization: `Bearer ${user.token}` },
+          });
+          const data = await res.json();
+          const results = data.user;
+          els.contacts.innerHTML = "";
+          (results || []).forEach((c) => {
+            const div = document.createElement("div");
+            div.className = "contact";
+            const initials = (c.name || c.email).slice(0, 1).toUpperCase();
+            div.innerHTML = `
+        <div class="avatar">${initials}</div>
+        <div class="meta">
+          <div class="name">${c.name || c.email}</div>
+          <div class="email">${c.email}</div>
+        </div>
+      `;
+            div.onclick = () => openChat(c);
+            els.contacts.appendChild(div);
+          });
+        } catch (err) {
+          console.error("Fetch users error:", err);
+        }
+      }
+
+      // Open chat with a contact
+      // When you open a chat
+      function openChat(contact) {
+        activeRecipient = contact;
+        els.messages.innerHTML = "";
+        els.chatName.textContent = contact.name || contact.email;
+        els.chatEmail.textContent = contact.email || "";
+        els.chatAvatar.textContent = (contact.name || contact.email)
+          .slice(0, 1)
+          .toUpperCase();
+
+        // Show chat window on mobile
+        document.getElementById("chatLayout").classList.add("chat-open");
+        document.getElementById("backBtn").style.display = "inline-block";
+
+        renderMessage(`Chat started with ${els.chatName.textContent}`, false);
+      }
+
+      // Back button handler
+      document.getElementById("backBtn").addEventListener("click", () => {
+        document.getElementById("chatLayout").classList.remove("chat-open");
+        document.getElementById("backBtn").style.display = "none";
+      });
+
+      // Send message
+      function sendMessage() {
+        const text = els.msgInput.value.trim();
+        if (!text) return;
+        if (!activeRecipient) {
+          renderMessage("Select a contact first.", false);
+          return;
+        }
+        renderMessage(text, true);
+        els.msgInput.value = "";
+        // Emit to backend (align fields with your server)
+        socket.emit("sendMessage", {
+          sender: user.email, // or user.name if backend expects name
+          recipient: activeRecipient.email, // key used on server to route
+          message: text,
+        });
+      }
+
+      // Events
+      window.addEventListener("DOMContentLoaded", restoreSession);
+      els.loginBtn.addEventListener("click", doLogin);
+      els.logoutBtn.addEventListener("click", doLogout);
+      els.msgInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendMessage();
+      });
+      els.sendBtn.addEventListener("click", sendMessage);
+      els.search.addEventListener("input", (e) => {
+        const q = e.target.value.trim();
+        clearTimeout(searchTimer);
+        if (!q) {
+          els.contacts.innerHTML = "";
+          return;
+        }
+        searchTimer = setTimeout(() => searchUsers(q), 250);
+      });
+    </script>
+    <!-- Global Page Loader -->
+    <div class="page-loader" id="pageLoader">
+      <div class="dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </body>
+</html>
