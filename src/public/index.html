@@ -26,10 +26,7 @@
         margin: 0;
         font-family: Arial, sans-serif;
         background: var(--bg-chat);
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        min-height: 100vh;
       }
 
       /* Loader */
@@ -162,6 +159,7 @@
       .contacts {
         flex: 1;
         overflow-y: auto;
+        min-height: 0;
       }
       .contact {
         padding: 14px;
@@ -291,6 +289,9 @@
       @media (max-width: 768px) {
         body {
           align-items: stretch;
+        }
+        .chat-layout.chat-open .sidebar {
+          display: none;
         }
 
         .chat-layout {
