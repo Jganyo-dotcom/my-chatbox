@@ -691,7 +691,7 @@
       async function fetchAllUsers() {
         if (!user || !user.token) return;
         try {
-          const res = await fetch(`${BASE_URL}Guest/users`, {
+          const res = await fetch(`/Guest/users`, {
             headers: { Authorization: `Bearer ${user.token}` },
           });
           const data = await res.json();
