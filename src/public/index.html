@@ -457,6 +457,7 @@
       function closeChatMobile() {
         els.chatLayout.classList.remove("chat-open");
         document.getElementById("backBtn").style.display = "none";
+        closeChat();
       }
 
       function showLoader() {
@@ -587,6 +588,10 @@
             }
           }
         });
+      }
+      function closeChat() {
+        activeRecipient = null; // reset so badge logic can run again
+        els.messages.innerHTML = ""; // optional: clear chat window
       }
 
       // Login flow
