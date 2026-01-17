@@ -1,3 +1,4 @@
+const MessageSchema = require("../models/messaging");
 let io;
 
 function init(server) {
@@ -6,6 +7,18 @@ function init(server) {
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
+    socket.on("sendMessage", (msg) => {
+      const myMessage = new MessageSchema({
+        sender: msg.sender,
+        recipient: msg.recipient,
+        message: msg.message,
+      });
+      myMessage.save();
+      io.to(msg.recipient.toString()).emit("receiveMessage", myMessage, () => {
+        console.log("emitted to the receiver");
+      });
+      io.to(msg.sender.toString()).emit("sendMessage", myMessage);
+    });
 
     // listen for joinRoom from client
     socket.on("joinRoom", (userId) => {

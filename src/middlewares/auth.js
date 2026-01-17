@@ -20,4 +20,4 @@ const authmiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authmiddleware;
+module.exports = { authmiddleware };

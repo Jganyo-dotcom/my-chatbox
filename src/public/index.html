@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -12,6 +12,14 @@
         --bubble-sent: #dcf8c6;
         --bubble-recv: #fff;
         --border: #ccc;
+      }
+      .badge {
+        background: red;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 12px;
+        margin-left: 5px;
       }
 
       #backBtn {
@@ -462,7 +470,7 @@
       }
 
       // Adjust if your backend runs elsewhere
-      const BASE_URL = "http://127.0.0.1:4555/";
+      const BASE_URL = "https://my-chatbox-iatd.onrender.com/";
 
       let socket = null;
       let user = null;
@@ -514,9 +522,25 @@
       function renderMessage(text, sent = false) {
         const div = document.createElement("div");
         div.className = "message " + (sent ? "sent" : "received");
-        div.innerHTML = `${text}<span class="timestamp">${timeNow()}</span>`;
+
+        // Add a "new" highlight class for fresh messages
+        div.innerHTML = `
+    <span class="bubble">${text}</span>
+    <span class="timestamp">${timeNow()}</span>
+  `;
         els.messages.appendChild(div);
-        els.messages.scrollTop = els.messages.scrollHeight;
+
+        // Add a temporary highlight effect
+        div.classList.add("new-message");
+        setTimeout(() => div.classList.remove("new-message"), 2000);
+
+        // Always scroll to bottom
+        scrollToBottom();
+      }
+
+      function scrollToBottom() {
+        const messagesDiv = els.messages;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
       }
 
       // Connect socket with token
@@ -535,20 +559,30 @@
         });
 
         // Receive messages pushed by backend
-        socket.on("sendMessage", (msg) => {
-          // Only render if the message belongs to current open chat,
-          // or render all (adjust to your preference)
+        socket.on("receiveMessage", (msg) => {
           if (
             activeRecipient &&
-            (msg.sender === activeRecipient.email ||
-              msg.recipient === activeRecipient.email)
+            (msg.sender === activeRecipient._id ||
+              msg.recipient === activeRecipient._id)
           ) {
-            renderMessage(
-              msg.message,
-              msg.sender === user.email || msg.sender === user.name
-            );
+            // Chat is open → render immediately
+            renderMessage(msg.message, msg.sender === user.user._id);
           } else {
-            // Optional: toast/indicator for new message from someone else
+            // Chat is not open → show unread badge
+            const contactDiv =
+              document.querySelector(`[data-id="${msg.sender}"]`) ||
+              document.querySelector(`[data-id="${msg.recipient}"]`);
+            if (contactDiv) {
+              let badge = contactDiv.querySelector(".badge");
+              if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "badge";
+                badge.textContent = "1";
+                contactDiv.appendChild(badge);
+              } else {
+                badge.textContent = parseInt(badge.textContent) + 1;
+              }
+            }
           }
         });
       }
@@ -575,7 +609,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(
-              isRegister ? { name, email, password } : { email, password }
+              isRegister ? { name, email, password } : { email, password },
             ),
           });
 
@@ -664,23 +698,38 @@
             `${BASE_URL}/search?query=${encodeURIComponent(query)}`,
             {
               headers: { Authorization: `Bearer ${user.token}` },
-            }
+            },
           );
           const results = await res.json();
           els.contacts.innerHTML = "";
+
           (results || []).forEach((c) => {
-            if (c.email === user.email) return; // skip self
+            // Skip the logged‑in user
+            if (c.email === user.email) return;
+
             const div = document.createElement("div");
             div.className = "contact";
+            div.setAttribute("data-id", c._id); // important for badge targeting
+
             const initials = (c.name || c.email).slice(0, 1).toUpperCase();
+
             div.innerHTML = `
-            <div class="avatar">${initials}</div>
-            <div class="meta">
-              <div class="name">${c.name || c.email}</div>
-              <div class="email">${c.email}</div>
-            </div>
-          `;
-            div.onclick = () => openChat(c);
+    <div class="avatar">${initials}</div>
+    <div class="meta">
+      <div class="name">${c.name || c.email}</div>
+      <div class="email">${c.email}</div>
+    </div>
+  `;
+
+            // Attach click handler to open chat
+            div.onclick = () => {
+              // Clear unread badge when opening chat
+              const badge = div.querySelector(".badge");
+              if (badge) badge.remove();
+
+              openChat(c);
+            };
+
             els.contacts.appendChild(div);
           });
         } catch (err) {
@@ -697,18 +746,31 @@
           const data = await res.json();
           const results = data.user;
           els.contacts.innerHTML = "";
+
           (results || []).forEach((c) => {
+            if (c.email === user.email) return; // skip self
+
             const div = document.createElement("div");
             div.className = "contact";
+            div.setAttribute("data-id", c._id); // critical for badge lookup
+
             const initials = (c.name || c.email).slice(0, 1).toUpperCase();
+
             div.innerHTML = `
-        <div class="avatar">${initials}</div>
-        <div class="meta">
-          <div class="name">${c.name || c.email}</div>
-          <div class="email">${c.email}</div>
-        </div>
-      `;
-            div.onclick = () => openChat(c);
+    <div class="avatar">${initials}</div>
+    <div class="meta">
+      <div class="name">${c.name || c.email}</div>
+      <div class="email">${c.email}</div>
+    </div>
+  `;
+
+            div.onclick = () => {
+              // clear badge when opening chat
+              const badge = div.querySelector(".badge");
+              if (badge) badge.remove();
+              openChat(c);
+            };
+
             els.contacts.appendChild(div);
           });
         } catch (err) {
@@ -718,7 +780,7 @@
 
       // Open chat with a contact
       // When you open a chat
-      function openChat(contact) {
+      async function openChat(contact) {
         activeRecipient = contact;
         els.messages.innerHTML = "";
         els.chatName.textContent = contact.name || contact.email;
@@ -730,6 +792,16 @@
         // Show chat window on mobile
         document.getElementById("chatLayout").classList.add("chat-open");
         document.getElementById("backBtn").style.display = "inline-block";
+
+        // Fetch past messages
+        const res = await fetch(`${BASE_URL}guest/messages/${contact._id}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        const history = await res.json();
+        const msgs = Array.isArray(history) ? history : history.messages;
+        (msgs || []).forEach((msg) => {
+          renderMessage(msg.message, msg.sender === user.user._id);
+        });
 
         renderMessage(`Chat started with ${els.chatName.textContent}`, false);
       }
@@ -752,8 +824,8 @@
         els.msgInput.value = "";
         // Emit to backend (align fields with your server)
         socket.emit("sendMessage", {
-          sender: user.email, // or user.name if backend expects name
-          recipient: activeRecipient.email, // key used on server to route
+          sender: user.user._id, // or user.name if backend expects name
+          recipient: activeRecipient._id, // key used on server to route
           message: text,
         });
       }

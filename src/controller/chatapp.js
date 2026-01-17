@@ -87,8 +87,11 @@ const messaging = async (req, res) => {
       recipient: value.recipient,
       message: value.message,
     });
+    await myMessage.save();
     const io = getIo();
-    io.to(value.recipient.toString()).emit("sendMessage", myMessage);
+    io.to(value.recipient.toString()).emit("sendMessage", myMessage, () => {
+      console.log("emitted to the receiver");
+    });
     io.to(req.user.id.toString()).emit("sendMessage", myMessage);
   } catch (err) {
     console.log(err);
@@ -106,4 +109,24 @@ const allUsers = async (req, res) => {
   }
 };
 
-module.exports = { register, loginUser, allUsers };
+const getMyMessages = async (req, res) => {
+  console.log("hit");
+  const recId = req.params.id;
+  const messages = await MessageSchema.find({
+    $or: [
+      { sender: req.user.id, recipient: recId },
+      { recipient: req.user.id, sender: recId },
+    ],
+  });
+  if (messages.length === 0)
+    return res.status(404).json({ message: "no messages found" });
+  console.log(messages);
+  return res.status(200).json({ message: "messages found", messages });
+};
+
+const deleteall = async (req, res) => {
+  const deleteme = await MessageSchema.deleteMany({});
+  return res.status(200).json({ message: "deleted" });
+};
+
+module.exports = { register, loginUser, allUsers, getMyMessages, deleteall };
