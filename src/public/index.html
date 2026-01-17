@@ -565,20 +565,22 @@
             (msg.sender === activeRecipient._id ||
               msg.recipient === activeRecipient._id)
           ) {
-            // Chat is open → render immediately
             renderMessage(msg.message, msg.sender === user.user._id);
           } else {
-            // Chat is not open → show unread badge
+            const senderId = String(msg.sender);
+            const recipientId = String(msg.recipient);
+
             const contactDiv =
-              document.querySelector(`[data-id="${msg.sender}"]`) ||
-              document.querySelector(`[data-id="${msg.recipient}"]`);
+              document.querySelector(`[data-id="${senderId}"]`) ||
+              document.querySelector(`[data-id="${recipientId}"]`);
+
             if (contactDiv) {
               let badge = contactDiv.querySelector(".badge");
               if (!badge) {
                 badge = document.createElement("span");
                 badge.className = "badge";
                 badge.textContent = "1";
-                contactDiv.appendChild(badge);
+                contactDiv.querySelector(".name").appendChild(badge);
               } else {
                 badge.textContent = parseInt(badge.textContent) + 1;
               }
@@ -747,15 +749,16 @@
           const results = data.user;
           els.contacts.innerHTML = "";
 
+          els.contacts.innerHTML = "";
+
           (results || []).forEach((c) => {
             if (c.email === user.email) return; // skip self
 
             const div = document.createElement("div");
             div.className = "contact";
-            div.setAttribute("data-id", c._id); // critical for badge lookup
+            div.setAttribute("data-id", c._id); // critical for badge targeting
 
             const initials = (c.name || c.email).slice(0, 1).toUpperCase();
-
             div.innerHTML = `
     <div class="avatar">${initials}</div>
     <div class="meta">
