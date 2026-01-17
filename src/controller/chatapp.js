@@ -50,7 +50,7 @@ const loginUser = async (req, res) => {
     }
     const comparePassword = await bcrypt.compare(
       value.password,
-      existing_user.password
+      existing_user.password,
     );
     if (!comparePassword) {
       return res.status(401).json({ message: "invalid credentials" });
@@ -64,7 +64,7 @@ const loginUser = async (req, res) => {
         role: existing_user.role,
       },
       process.env.JWT_SECRETE,
-      { expiresIn: process.env.EXPIRES_IN }
+      { expiresIn: process.env.EXPIRES_IN },
     );
 
     return res
@@ -120,7 +120,7 @@ const getMyMessages = async (req, res) => {
   });
   if (messages.length === 0)
     return res.status(404).json({ message: "no messages found" });
-  console.log(messages);
+
   return res.status(200).json({ message: "messages found", messages });
 };
 
